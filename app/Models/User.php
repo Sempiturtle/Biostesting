@@ -17,11 +17,14 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'rfid_uid',
+        'fingerprint_template',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'fingerprint_template',
     ];
 
     public function isAdmin(): bool
