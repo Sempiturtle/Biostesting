@@ -81,6 +81,31 @@
                     </div>
                 </div>
 
+                {{-- Compensation Section --}}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 rounded-xl border border-slate-200">
+                    <div>
+                        <label for="basic_salary" class="block text-sm font-bold text-slate-700 uppercase mb-1">Monthly Basic Salary</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-3 text-slate-400 font-bold">₱</span>
+                            <input type="number" step="0.01" name="basic_salary" id="basic_salary" value="{{ old('basic_salary') }}"
+                                class="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-slate-800 outline-none"
+                                placeholder="0.00">
+                        </div>
+                        @error('basic_salary') <p class="mt-1 text-xs text-red-600 font-bold uppercase">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label for="hourly_rate" class="block text-sm font-bold text-slate-700 uppercase mb-1">Hourly Rate</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-3 text-slate-400 font-bold">₱</span>
+                            <input type="number" step="0.01" name="hourly_rate" id="hourly_rate" value="{{ old('hourly_rate') }}"
+                                class="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-slate-800 outline-none"
+                                placeholder="0.00">
+                        </div>
+                        @error('hourly_rate') <p class="mt-1 text-xs text-red-600 font-bold uppercase">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
                 {{-- ------------------------------------------------------------
                 RFID UID field
                 ------------------------------------------------------------ --}}
@@ -110,6 +135,56 @@
                         <p class="mt-1 text-xs text-red-600 font-bold uppercase">{{ $message }}</p>
                     @enderror
                 </div>
+
+                <!-- Schedule Upload Section -->
+                <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
+                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Professor's Schedule
+                    </h3>
+
+                    <!-- Visual Example -->
+                    <div class="mb-6">
+                        <p class="text-xs font-bold text-slate-500 uppercase mb-2">Required Format (CSV/Excel):</p>
+                        <div class="overflow-hidden rounded-lg border border-slate-200 shadow-sm">
+                            <table class="w-full text-left text-xs bg-white">
+                                <thead class="bg-slate-100 text-slate-600">
+                                    <tr>
+                                        <th class="px-3 py-2 border-r">day</th>
+                                        <th class="px-3 py-2 border-r">start_time</th>
+                                        <th class="px-3 py-2">end_time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="px-3 py-2 border-r border-t">Monday</td>
+                                        <td class="px-3 py-2 border-r border-t">07:00 AM</td>
+                                        <td class="px-3 py-2 border-t">12:50 PM</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-3 py-2 border-r border-t">Tuesday</td>
+                                        <td class="px-3 py-2 border-r border-t">01:10 PM</td>
+                                        <td class="px-3 py-2 border-t">10:00 PM</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- File Input -->
+                    <div>
+                        <label for="schedule_file" class="block text-sm font-bold text-slate-700 uppercase mb-1">Upload
+                            Schedule File (.csv)</label>
+                        <input type="file" id="schedule_file" name="schedule_file" accept=".csv"
+                            class="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-slate-800 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-slate-800 file:text-white hover:file:bg-slate-700 cursor-pointer">
+                        <p class="mt-2 text-[10px] text-slate-400">Note: Please save your Excel file as <b>CSV (Comma
+                                Delimited)</b> before uploading.</p>
+                    </div>
+                </div>
+
+                <a href="/example_schedule.csv" download class="text-blue-600 underline text-xs">
+                    📥 Download Example CSV Template
+                </a>
+
+
 
 
                 <div class="pt-4 border-t flex items-center justify-between">

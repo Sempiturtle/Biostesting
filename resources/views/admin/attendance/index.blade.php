@@ -1,232 +1,103 @@
 <x-school-layout>
-    <x-slot name="header">
-        <h2 class="text-3xl font-bold text-slate-800">
-            Attendance Dashboard
-        </h2>
-        <p class="text-slate-500 mt-1 text-sm">
-            Scan RFID cards and fingerprints – the data is stored automatically.
-        </p>
-    </x-slot>
-
-    <div class="max-w-3xl mx-auto p-6">
-        <div class="school-card">
-
-            {{-- Status area --}}
-            <div id="status" class="mb-4 p-4 border rounded bg-gray-800 text-white">
-                <p class="text-sm">⌛ Waiting for device…</p>
-            </div>
-
-            {{-- Hidden form --}}
-            <form id="attendanceForm" method="POST" action="{{ route('admin.attendance.store') }}" class="hidden">
-                @csrf
-                <input type="hidden" name="rfid_uid" id="rfid_uid">
-                <input type="hidden" name="fingerprint_template" id="fingerprint_template">
-            </form>
-
-            {{-- Start / Stop buttons --}}
-            <div class="flex space-x-4 mb-6">
-                <button id="btnStart" type="button" class="btn-school btn-accent">
-                    ▶ Start Reader
-                </button>
-                <button id="btnStop" type="button" class="btn-school btn-primary" disabled>
-                    ■ Stop Reader
-                </button>
-
-                {{-- Manual test button (remove when hardware is ready) --}}
-                <div class="mt-4">
-                    <button id="btnSimulate" type="button" class="btn-school btn-accent" onclick="simulateScan()">
-                        🧪 Simulate Scan (Testing)
-                    </button>
+    <div class="max-w-4xl mx-auto p-6">
+        <!-- Main Kiosk Card -->
+        <div class="school-card text-center p-12 mb-6">
+            <div class="mb-6">
+                <div class="inline-flex items-center justify-center w-24 h-24 bg-blue-50 rounded-full mb-4">
+                    <svg class="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04m17.236 0a11.955 11.955 0 00-11.762-3.048 11.955 11.955 0 00-11.762 3.048m17.236 0l-17.236 0">
+                        </path>
+                    </svg>
                 </div>
-
+                <h1 class="text-3xl font-black text-slate-800">ATTENDANCE SYSTEM</h1>
+                <p class="text-slate-500 text-lg">System is Ready. Tap your ID or Fingerprint.</p>
             </div>
 
+            <!-- Feedback Area -->
+            <div id="statusBox"
+                class="p-4 rounded-xl border-2 border-dashed border-slate-200 transition-all duration-300">
+                <span class="text-slate-400 italic">Waiting for scan...</span>
+            </div>
+
+            <!-- Hidden Input for RFID (Always Focused) -->
+            <input type="text" id="rfidBuffer" class="opacity-0 absolute pointer-events-none" autofocus
+                autocomplete="off">
         </div>
 
-        {{-- Recent scans table --}}
-        @php $recent = \App\Models\Attendance::orderByDesc('scanned_at')->take(10)->get(); @endphp
-
-        @if($recent->isNotEmpty())
-            <div class="school-card mt-6">
-                <h3 class="text-lg font-bold text-slate-800 mb-4">Recent Scans</h3>
-                <table class="w-full text-sm text-left text-slate-600">
-                    <thead class="border-b border-slate-300">
-                        <tr>
-                            <th class="pb-2">Time</th>
-                            <th class="pb-2">Type</th>
-                            <th class="pb-2">RFID UID</th>
-                            <th class="pb-2">Employee</th>
-                        </tr>
-
-                    </thead>
-                    <tbody>
-                        @foreach($recent as $a)
-                            <tr class="border-b border-slate-200">
-                                <td class="py-2">
-                                    {{ \Carbon\Carbon::parse($a->scanned_at)->timezone('Asia/Manila')->format('M d, Y — h:i:s A') }}
-                                </td>
-                                <td class="py-2">
-                                    @if($a->type === 'time_in')
-                                        <span style="color: green; font-weight: bold;">⬆ TIME IN</span>
-                                    @else
-                                        <span style="color: red; font-weight: bold;">⬇ TIME OUT</span>
-                                    @endif
-                                </td>
-                                <td class="py-2">{{ $a->rfid_uid }}</td>
-
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
+        <!-- Recent Scans Table (Updates automatically) -->
+        <div id="scansTableContainer">
+            @include('admin.attendance.partials.table')
+        </div>
     </div>
 
     <script>
-        // Web Serial RFID & Fingerprint reader
-        let port;
-        let keepReading = false;
+        const input = document.getElementById('rfidBuffer');
+        const statusBox = document.getElementById('statusBox');
+        let cooldown = false;
 
-        const statusEl = document.getElementById('status');
-        const btnStart = document.getElementById('btnStart');
-        const btnStop = document.getElementById('btnStop');
-        const form = document.getElementById('attendanceForm');
-        const rfidInput = document.getElementById('rfid_uid');
-        const fpInput = document.getElementById('fingerprint_template');
+        // 1. Keep the input focused at all times so RFID reader can "type" into it
+        const keepFocus = () => input.focus();
+        document.addEventListener('click', keepFocus);
+        window.addEventListener('focus', keepFocus);
+        setInterval(keepFocus, 1000); // Force focus every second
 
-        function log(msg) {
-            statusEl.innerHTML = '<p class="text-sm">' + msg + '</p>';
-            console.log('[Attendance]', msg);
-        }
-
-        async function connectSerial() {
-            if (!('serial' in navigator)) {
-                alert('Web Serial API not supported in this browser.');
-                return;
-            }
-            try {
-                port = await navigator.serial.requestPort({ filters: [] });
-                await port.open({ baudRate: 9600 });
-                keepReading = true;
-                btnStart.disabled = true;
-                btnStop.disabled = false;
-                log('📡 Serial port opened – waiting for scans…');
-                readLoop();
-            } catch (e) {
-                console.error(e);
-                alert('Failed to open serial port: ' + e);
-            }
-        }
-
-        async function disconnectSerial() {
-            keepReading = false;
-            btnStart.disabled = false;
-            btnStop.disabled = true;
-            if (port) {
-                await port.close();
-                log('🔌 Serial port closed.');
-            }
-        }
-
-        async function readLoop() {
-            const textDecoder = new TextDecoderStream();
-            port.readable.pipeTo(textDecoder.writable);
-            const reader = textDecoder.readable
-                .pipeThrough(new TransformStream({
-                    transform(chunk, controller) {
-                        chunk.split('\n').forEach(function (l) {
-                            controller.enqueue(l.trim());
-                        });
-                    }
-                }))
-                .getReader();
-
-            while (keepReading) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                if (!value) continue;
-
-                if (value.startsWith('RFID:')) {
-                    var uid = value.replace('RFID:', '').trim();
-                    rfidInput.value = uid;
-                    log('🔖 RFID detected: ' + uid);
-                } else if (value.startsWith('FP:')) {
-                    var fp = value.replace('FP:', '').trim();
-                    fpInput.value = fp;
-                    log('🔐 Fingerprint template received.');
-                    submitAttendance();
-                } else {
-                    console.log('Ignored line:', value);
+        // 2. Listen for RFID "typing" (USB Readers send Enter at the end)
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const uid = input.value.trim();
+                if (uid && !cooldown) {
+                    processScan(uid);
                 }
+                input.value = ''; // Clear buffer
             }
-        }
+        });
 
-        function submitAttendance() {
-            if (!rfidInput.value) {
-                log('⚠️ No RFID UID – cannot submit.');
-                return;
-            }
-            log('🚀 Sending attendance data…');
+        function processScan(uid) {
+            cooldown = true;
+            statusBox.innerHTML = `<span class="text-blue-600 font-bold animate-pulse">🚀 Processing ID: ${uid}...</span>`;
+            statusBox.className = "p-4 rounded-xl border-2 border-blue-500 bg-blue-50";
 
-            fetch(form.action, {
+            fetch("{{ route('admin.attendance.store') }}", {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    rfid_uid: rfidInput.value,
-                    fingerprint_template: fpInput.value
-                })
+                body: JSON.stringify({ rfid_uid: uid })
             })
-                .then(function (res) { return res.json(); })
-                .then(function (json) {
+                .then(res => res.json())
+                .then(json => {
                     if (json.status === 'ok') {
-                        log('✅ ' + json.employee + ' — ' + json.type.replace('_', ' ').toUpperCase());
-                        rfidInput.value = '';
-                        fpInput.value = '';
+                        statusBox.innerHTML = `<span class="text-green-600 font-bold">✅ Welcome, ${json.employee}! (${json.type.replace('_', ' ')})</span>`;
+                        statusBox.className = "p-4 rounded-xl border-2 border-green-500 bg-green-50";
+                        refreshTable(); // Update the table immediately
                     } else {
-                        log('❌ Server error: ' + JSON.stringify(json.errors));
+                        statusBox.innerHTML = `<span class="text-red-600 font-bold">❌ ${json.errors?.message || 'Unauthorized Card'}</span>`;
+                        statusBox.className = "p-4 rounded-xl border-2 border-red-500 bg-red-50";
                     }
+
+                    // Reset feedback after 3 seconds
+                    setTimeout(() => {
+                        statusBox.innerHTML = `<span class="text-slate-400 italic">Waiting for scan...</span>`;
+                        statusBox.className = "p-4 rounded-xl border-2 border-dashed border-slate-200";
+                        cooldown = false;
+                    }, 3000);
                 })
-                .catch(function (err) {
-                    console.error(err);
-                    log('❌ Network error');
+                .catch(() => {
+                    statusBox.innerHTML = `<span class="text-red-600">❌ Connection Error</span>`;
+                    cooldown = false;
                 });
         }
 
-        btnStart.addEventListener('click', connectSerial);
-        btnStop.addEventListener('click', disconnectSerial);
-        window.addEventListener('beforeunload', disconnectSerial);
-
-        function simulateScan() {
-            var testUid = prompt('Enter a test RFID UID:', '04A224B1C2D3');
-            if (!testUid) return;
-
-            fetch('{{ route("admin.attendance.store") }}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    rfid_uid: testUid,
-                    fingerprint_template: ''
-                })
-            })
-                .then(function (res) { return res.json(); })
-                .then(function (json) {
-                    if (json.status === 'ok') {
-                        log('✅ ' + json.employee + ' — ' + json.type.replace('_', ' ').toUpperCase());
-                        location.reload();
-                    } else {
-                        log('❌ Error: ' + JSON.stringify(json.errors));
-                    }
-                })
-                .catch(function (err) {
-                    log('❌ Network error');
+        // 3. Auto-Refresh the table every 3 seconds (to show ESP32 scans)
+        function refreshTable() {
+            fetch("{{ route('admin.attendance.index') }}?refresh=1")
+                .then(res => res.text())
+                .then(html => {
+                    document.getElementById('scansTableContainer').innerHTML = html;
                 });
         }
-
+        setInterval(refreshTable, 3000);
     </script>
 </x-school-layout>

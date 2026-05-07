@@ -8,7 +8,7 @@
 
     <div class="max-w-2xl mx-auto">
         <div class="school-card">
-            <form method="POST" action="{{ route('admin.users.update', $user) }}" class="space-y-6">
+            <form method="POST" action="{{ route('admin.users.update', $user) }}" enctype="multipart/form-data" class="space-y-6">
                 @csrf
                 @method('PATCH')
 
@@ -79,6 +79,31 @@
 
 
                 <div class="pt-6 border-t">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Compensation Details</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 rounded-xl border border-slate-200">
+                        <div>
+                            <label for="basic_salary" class="block text-sm font-bold text-slate-700 uppercase mb-1">Monthly Basic Salary</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-3 text-slate-400 font-bold">₱</span>
+                                <input type="number" step="0.01" name="basic_salary" id="basic_salary" value="{{ old('basic_salary', $user->basic_salary) }}"
+                                    class="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-slate-800 outline-none">
+                            </div>
+                            @error('basic_salary') <p class="mt-1 text-xs text-red-600 font-bold uppercase">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label for="hourly_rate" class="block text-sm font-bold text-slate-700 uppercase mb-1">Hourly Rate</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-3 text-slate-400 font-bold">₱</span>
+                                <input type="number" step="0.01" name="hourly_rate" id="hourly_rate" value="{{ old('hourly_rate', $user->hourly_rate) }}"
+                                    class="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-slate-800 outline-none">
+                            </div>
+                            @error('hourly_rate') <p class="mt-1 text-xs text-red-600 font-bold uppercase">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-6 border-t">
                     <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Security Override
                         (Optional)</h4>
                     <div>
@@ -91,6 +116,21 @@
                         @error('password') <p class="mt-1 text-xs text-red-600 font-bold uppercase">{{ $message }}</p>
                         @enderror
                     </div>
+                </div>
+
+                <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
+                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Update Schedule</h3>
+
+                    <div class="mb-4">
+                        <label for="schedule_file" class="block text-sm font-bold text-slate-700 uppercase mb-1">Upload New Schedule (.csv)</label>
+                        <input type="file" id="schedule_file" name="schedule_file" accept=".csv"
+                            class="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-slate-800 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-slate-800 file:text-white cursor-pointer">
+                        <p class="mt-2 text-[10px] text-slate-400 italic">Uploading a new file will replace the current schedule for this professor.</p>
+                    </div>
+
+                    <a href="/example_schedule.csv" download class="text-blue-600 underline text-[10px] font-bold uppercase">
+                        📥 Download Example Template
+                    </a>
                 </div>
 
                 <div class="pt-6 border-t flex items-center justify-between">

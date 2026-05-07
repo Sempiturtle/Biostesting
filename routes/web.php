@@ -2,10 +2,9 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\UserController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\AttendanceController;
-
-
+use App\Http\Controllers\Admin\PayrollController;
+use Illuminate\Support\Facades\Route;
 
 // Public
 Route::get('/', fn() => view('welcome'));
@@ -22,16 +21,13 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-//Admin Routes
+// Admin Routes
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
 
-    Route::get('/dashboard', fn() => view('admin.dashboard'))->name('dashboard');
+    Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
 
-    // Users CRUD
-    Route::post('/users', [UserController::class, 'store'])->name('users.store');
-    Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
-    Route::patch('/users/{user}', [UserController::class, 'update'])->name('users.update');
-    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+    // Users
+    Route::resource('/users', UserController::class)->except(['index', 'show', 'create']);
 
     // Employees
     Route::prefix('employees')->name('employees.')->group(function () {
@@ -47,14 +43,19 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::get('/create', [UserController::class, 'createAdmin'])->name('create');
     });
 
-
     // Attendance
-    Route::get('/attendance', [AttendanceController::class, 'index'])
-        ->name('attendance.index');
-    Route::post('/attendance', [AttendanceController::class, 'store'])
-        ->name('attendance.store');
+    Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
+
+    // Payroll
+    Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll.index');
+    Route::post('/payroll/generate', [PayrollController::class, 'generate'])->name('payroll.generate');
+    Route::get('/payroll/{payroll}/download', [PayrollController::class, 'download'])->name('payroll.download');
+    Route::patch('/payroll/{payroll}/paid', [PayrollController::class, 'markAsPaid'])->name('payroll.paid');
+
+    // Relief Intelligence
+    Route::get('/relief', [\App\Http\Controllers\Admin\ReliefController::class, 'index'])->name('relief.index');
 
 });
-
 
 require __DIR__ . '/auth.php';
